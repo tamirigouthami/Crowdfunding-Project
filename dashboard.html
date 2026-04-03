@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard | Crowdfunding Data Analysis</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="page-bg dashboard-bg protected-page">
+  <header class="navbar">
+    <div class="brand">
+      <span class="brand-logo">₹</span>
+      <span>Crowdfunding Data Analysis</span>
+    </div>
+    <nav>
+      <a href="home.html">Home</a>
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="insights.html">Insights</a>
+      <a href="review.html">Review</a>
+      <a href="logout.html">Logout</a>
+    </nav>
+  </header>
+
+  <main class="page-container">
+    <section class="section-card">
+      <h1>Interactive Tableau Dashboards and Story</h1>
+      <p>
+        Interactive Tableau dashboards help users visually explore crowdfunding data through charts, filters, and KPIs to understand patterns and performance.
+        Tableau stories present these insights step by step, combining multiple dashboards into a clear narrative.
+        Together, they make data easy to understand and support better decision-making.
+      </p>
+
+      <div class="tab-buttons">
+        <button
+          class="tab-btn active"
+          onclick="showDashboard('overviewTab', this, 'overviewFrame', 'https://public.tableau.com/views/CrowdfundingTableaucreations/CrowdfundingProjectOverview?:showVizHome=no')">
+          Dashboard 1
+        </button>
+
+        <button
+          class="tab-btn"
+          onclick="showDashboard('fundingTab', this, 'fundingFrame', 'https://public.tableau.com/views/CrowdfundingTableaucreations/FundingPerformanceAnalysis?:showVizHome=no')">
+          Dashboard 2
+        </button>
+
+        <button
+          class="tab-btn"
+          onclick="showDashboard('successTab', this, 'successFrame', 'https://public.tableau.com/views/CrowdfundingTableaucreations/CampaignSuccessInsights?:showVizHome=no')">
+          Dashboard 3
+        </button>
+
+        <button
+          class="tab-btn"
+          onclick="showDashboard('storyTab', this, 'storyFrame', 'https://public.tableau.com/views/CrowdfundingTableaucreations/CrowdfundingAnalysisStory?:showVizHome=no')">
+          Story
+        </button>
+      </div>
+    </section>
+
+    <section id="overviewTab" class="tab-content active-tab">
+      <div class="viz-card">
+        <h2>Crowdfunding Project Overview</h2>
+        <iframe
+          id="overviewFrame"
+          class="tableau-frame"
+          src="https://public.tableau.com/views/CrowdfundingTableaucreations/CrowdfundingProjectOverview?:showVizHome=no"
+          title="Crowdfunding Project Overview"
+          loading="lazy"
+          allowfullscreen>
+        </iframe>
+      </div>
+    </section>
+
+    <section id="fundingTab" class="tab-content">
+      <div class="viz-card">
+        <h2>Funding Performance Analysis</h2>
+        <iframe
+          id="fundingFrame"
+          class="tableau-frame"
+          src="about:blank"
+          title="Funding Performance Analysis"
+          loading="lazy"
+          allowfullscreen>
+        </iframe>
+      </div>
+    </section>
+
+    <section id="successTab" class="tab-content">
+      <div class="viz-card">
+        <h2>Campaign Success Insights</h2>
+        <iframe
+          id="successFrame"
+          class="tableau-frame"
+          src="about:blank"
+          title="Campaign Success Insights"
+          loading="lazy"
+          allowfullscreen>
+        </iframe>
+      </div>
+    </section>
+
+    <section id="storyTab" class="tab-content">
+      <div class="viz-card">
+        <h2>Crowdfunding Analysis Story</h2>
+        <iframe
+          id="storyFrame"
+          class="tableau-frame"
+          src="about:blank"
+          title="Crowdfunding Analysis Story"
+          loading="lazy"
+          allowfullscreen>
+        </iframe>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+  <script>
+    function showDashboard(tabId, button, frameId, frameUrl) {
+      const tabs = document.querySelectorAll(".tab-content");
+      const buttons = document.querySelectorAll(".tab-btn");
+
+      tabs.forEach(tab => tab.classList.remove("active-tab"));
+      buttons.forEach(btn => btn.classList.remove("active"));
+
+      document.getElementById(tabId).classList.add("active-tab");
+      button.classList.add("active");
+
+      const frame = document.getElementById(frameId);
+      if (frame && frame.getAttribute("src") !== frameUrl) {
+        frame.setAttribute("src", frameUrl);
+      }
+    }
+  </script>
+</body>
+</html>
