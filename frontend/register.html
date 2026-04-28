@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register | Crowdfunding Data Analytics</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="page-bg login-bg">
+  <div class="overlay"></div>
+
+  <main class="auth-wrapper">
+    <div class="auth-card glass">
+      <div class="logo-circle">₹</div>
+      <h1>Create Account</h1>
+      <p class="subtext">Register to access dashboards, insights, and review system</p>
+
+      <form id="registerForm" class="form-card">
+        <label for="registerUsername">Username</label>
+        <input type="text" id="registerUsername" placeholder="Enter username" required />
+
+        <label for="registerPassword">Password</label>
+        <input type="password" id="registerPassword" placeholder="Enter password" required />
+
+        <label for="registerEmail">Email</label>
+        <input type="email" id="registerEmail" placeholder="Enter email" required />
+
+        <button type="submit" class="btn-primary">Register</button>
+
+        <p id="registerMessage" class="success-message"></p>
+        <p id="registerError" class="error-message"></p>
+
+        <p style="margin-top: 10px; text-align: center; color: #eff6ff;">
+          Already have an account?
+          <a href="login.html" style="color: #ffffff; font-weight: 700;">Login here</a>
+        </p>
+      </form>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

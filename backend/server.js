@@ -1,17 +1,22 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const nodemailer = require("nodemailer");
-const dotenv = require("dotenv");
+const axios = require("axios");
 const session = require("express-session");
-const validUsers = require("./users");
-
-dotenv.config();
+const nodemailer = require("nodemailer");
+const mysql = require("mysql2/promise");
 
 const app = express();
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ================= DATABASE =================
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "crowdfunding_db"
+});
 
+// ================= MIDDLEWARE =================
 app.use(
   cors({
     origin: "http://127.0.0.1:5500",
@@ -19,9 +24,11 @@ app.use(
   })
 );
 
+app.use(express.json());
+
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || "crowdfunding_secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -33,6 +40,7 @@ app.use(
   })
 );
 
+// ================= MAIL =================
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -41,11 +49,13 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// ================= ROOT =================
 app.get("/", (req, res) => {
-  res.send("Backend is running");
+  res.send("Backend server is running");
 });
 
-app.post("/api/login", (req, res) => {
+// ================= REGISTER =================
+app.post("/api/register", async (req, res) => {
   try {
     const { username, password, email } = req.body;
 
@@ -56,32 +66,73 @@ app.post("/api/login", (req, res) => {
       });
     }
 
-    const user = validUsers.find(
-      (u) =>
-        u.username === username.trim() &&
-        u.password === password.trim() &&
-        u.email.toLowerCase() === email.trim().toLowerCase()
+    const [existingUsers] = await pool.execute(
+      "SELECT * FROM users WHERE username = ? OR email = ?",
+      [username.trim(), email.trim().toLowerCase()]
     );
 
-    if (!user) {
+    if (existingUsers.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Username or email already exists"
+      });
+    }
+
+    await pool.execute(
+      "INSERT INTO users (username, password, email, role, is_alert_recipient) VALUES (?, ?, ?, ?, ?)",
+      [username.trim(), password.trim(), email.trim().toLowerCase(), "user", 1]
+    );
+
+    return res.json({
+      success: true,
+      message: "Registration successful. Please login."
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error during registration"
+    });
+  }
+});
+
+// ================= LOGIN =================
+app.post("/api/login", async (req, res) => {
+  try {
+    const { username, password, email } = req.body;
+
+    if (!username || !password || !email) {
+      return res.status(400).json({
+        success: false,
+        message: "Username, password, and email are required"
+      });
+    }
+
+    const [rows] = await pool.execute(
+      "SELECT id, username, email, role FROM users WHERE username = ? AND password = ? AND email = ?",
+      [username.trim(), password.trim(), email.trim().toLowerCase()]
+    );
+
+    if (rows.length === 0) {
       return res.status(401).json({
         success: false,
         message: "Invalid username, password, or email"
       });
     }
 
+    const user = rows[0];
+
     req.session.user = {
+      id: user.id,
       username: user.username,
-      email: user.email
+      email: user.email,
+      role: user.role
     };
 
     return res.json({
       success: true,
       message: "Login successful",
-      user: {
-        username: user.username,
-        email: user.email
-      }
+      user: req.session.user
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -92,34 +143,52 @@ app.post("/api/login", (req, res) => {
   }
 });
 
+// ================= SESSION CHECK =================
 app.get("/api/me", (req, res) => {
-  try {
-    if (!req.session.user) {
-      return res.status(401).json({
+  if (!req.session.user) {
+    return res.status(401).json({
+      success: false,
+      message: "No user logged in"
+    });
+  }
+
+  return res.json({
+    success: true,
+    user: req.session.user
+  });
+});
+
+// ================= LOGOUT =================
+app.post("/api/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({
         success: false,
-        message: "No user logged in"
+        message: "Logout failed"
       });
     }
 
     return res.json({
       success: true,
-      user: req.session.user
+      message: "Logged out successfully"
     });
-  } catch (error) {
-    console.error("Session check error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Server error while checking session"
-    });
-  }
+  });
 });
 
+// ================= ALERT MAIL =================
 app.post("/api/send-alert", async (req, res) => {
   try {
     if (!req.session.user) {
       return res.status(401).json({
         success: false,
         message: "Please login first"
+      });
+    }
+
+    if (req.session.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only admin can send alert messages"
       });
     }
 
@@ -132,31 +201,40 @@ app.post("/api/send-alert", async (req, res) => {
       });
     }
 
-    const loggedInUser = req.session.user;
+    const [recipients] = await pool.execute(
+      "SELECT email FROM users WHERE is_alert_recipient = 1"
+    );
 
-    const mailOptions = {
+    if (recipients.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No alert recipients found"
+      });
+    }
+
+    const recipientEmails = recipients.map((user) => user.email);
+
+    await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: loggedInUser.email,
+      bcc: recipientEmails.join(","),
       subject: "Crowdfunding Alert Notification",
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6;">
           <h2 style="color: #1d4ed8;">Crowdfunding Alert Notification</h2>
-          <p>Hello <strong>${loggedInUser.username}</strong>,</p>
-          <p>You have received a new alert from the Crowdfunding Data Analysis Web Application.</p>
+          <p>Hello,</p>
+          <p>An admin has triggered a new alert from the Crowdfunding Data Analytics Web Application.</p>
           <p><strong>Alert Message:</strong> ${alertTitle}</p>
           <p>Please review this insight in your application dashboard.</p>
           <br/>
           <p>Regards,</p>
-          <p><strong>Crowdfunding Data Analysis System</strong></p>
+          <p><strong>Crowdfunding Data Analytics System</strong></p>
         </div>
       `
-    };
-
-    await transporter.sendMail(mailOptions);
+    });
 
     return res.json({
       success: true,
-      message: `Alert email sent successfully to ${loggedInUser.email}`
+      message: `Alert email sent successfully to ${recipientEmails.length} users`
     });
   } catch (error) {
     console.error("Send alert error:", error);
@@ -167,30 +245,55 @@ app.post("/api/send-alert", async (req, res) => {
   }
 });
 
-app.post("/api/logout", (req, res) => {
+// ================= ML PREDICTION =================
+app.post("/api/predict", async (req, res) => {
   try {
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({
-          success: false,
-          message: "Logout failed"
-        });
-      }
+    console.log("Received from frontend:", req.body);
 
-      return res.json({
-        success: true,
-        message: "Logged out successfully"
-      });
+    const response = await axios.post(
+      "http://127.0.0.1:5001/predict",
+      req.body
+    );
+
+    console.log("Flask response:", response.data);
+
+    return res.json({
+      success: response.data.success,
+      logistic: response.data.logistic,
+      random_forest: response.data.random_forest,
+      message: response.data.message || ""
     });
   } catch (error) {
-    console.error("Logout error:", error);
+    console.error("Node prediction error:", error.response?.data || error.message);
+
     return res.status(500).json({
       success: false,
-      message: "Server error during logout"
+      logistic: "",
+      random_forest: "",
+      message: "Prediction failed"
     });
   }
 });
 
+// ================= TEST DB =================
+app.get("/api/test-db", async (req, res) => {
+  try {
+    const [rows] = await pool.execute("SELECT NOW() AS currentTime");
+    res.json({
+      success: true,
+      message: "Database connected successfully",
+      time: rows[0].currentTime
+    });
+  } catch (error) {
+    console.error("DB test error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Database connection failed"
+    });
+  }
+});
+
+// ================= TEST MAIL =================
 app.get("/api/test-mail", async (req, res) => {
   try {
     await transporter.sendMail({
@@ -213,6 +316,8 @@ app.get("/api/test-mail", async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT, () => {
-  console.log(`Server running on http://localhost:${process.env.PORT}`);
+// ================= SERVER =================
+const PORT = 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on http://127.0.0.1:${PORT}`);
 });

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prediction | Crowdfunding Data Analytics</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="page-bg home-bg">
+  <div class="overlay"></div>
+
+  <header class="navbar">
+    <div class="brand">
+      <span class="brand-logo">₹</span>
+      <span>Crowdfunding Data Analytics</span>
+    </div>
+    <nav>
+      <a href="home.html">Home</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="insights.html">Insights</a>
+      <a href="predict.html" class="active">Prediction</a>
+      <a href="review.html">Review</a>
+      <a href="logout.html">Logout</a>
+    </nav>
+  </header>
+
+  <main class="page-container">
+    <section class="section-card">
+      <h1>Campaign Success Prediction</h1>
+      <p>Enter campaign details to predict success using Logistic Regression and Random Forest.</p>
+
+      <form id="predictForm" class="form-grid">
+        <input id="category" placeholder="Category (Art)" required />
+        <input id="main_category" placeholder="Main Category (Arts)" required />
+        <input id="country" placeholder="Country (US)" required />
+
+        <input id="duration" type="number" placeholder="Campaign Duration Days" required />
+        <input id="goal" type="number" placeholder="Goal Amount" required />
+        <input id="pledged" type="number" placeholder="Pledged Amount" required />
+
+        <input id="backers" type="number" placeholder="Backers Count" required />
+        <select id="featured" required>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+        <input id="gap" type="number" placeholder="Funding Gap" required />
+
+        <input id="goal_range" placeholder="Goal Range (Medium)" required />
+
+        <button type="submit" class="btn-primary">Predict</button>
+      </form>
+
+      <h3 id="result" style="margin-top:20px;color:#0b8f2a;"></h3>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
